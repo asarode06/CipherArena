@@ -15,14 +15,23 @@ export async function handle({ event, resolve }) {
   const requestHost = event.request.headers.get('host') || '';
 
   // 1. PRIMARY DOMAIN REDIRECT
-  // This effectively prevents cross-site submissions by forcing everyone to the same origin
   if (requestHost.includes('cipher-arena.fly.dev')) {
     return new Response(null, {
       status: 301,
       headers: {
-        Location: `https://cipherarena.com${pathname}${event.url.search}`,
-        'Cache-Control': 'public, max-age=31536000', // Permanent redirect
+        Location: `https://www.cipherarena.com${pathname}${event.url.search}`,
+        'Cache-Control': 'public, max-age=31536000',
         'X-Robots-Tag': 'noindex, nofollow',
+      },
+    });
+  }
+
+  if (requestHost.includes('www.cipherarena.com')) {
+    return new Response(null, {
+      status: 301,
+      headers: {
+        Location: `https://cipherarena.com${pathname}${event.url.search}`,
+        'Cache-Control': 'public, max-age=31536000',
       },
     });
   }
