@@ -25,11 +25,10 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Etc
-/.git
-/node_modules
+node_modules
 .dockerignore
 .env
-.husky/
+.husky
 Dockerfile
 fly.toml
 src/app.html
