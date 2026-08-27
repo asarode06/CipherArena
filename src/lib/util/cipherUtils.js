@@ -1,6 +1,21 @@
 import { ENGLISH_ALPHABET, SPANISH_ALPHABET, isSolvableChunk } from '$shared/CipherUtil';
 import { cipherTypes } from '$shared/CipherTypes';
 
+/**
+ * Returns the set of symbols the letter-input bank (`letterInputs`/`letterFocus`, and FreqTable's
+ * rows) should cover for this cipher. Defaults to the fixed alphabet (shows every letter even if
+ * unused in this quote); ciphers configured with `symbolSource: 'ciphertext'` (e.g. homophonic
+ * substitution, where the symbol set is larger than 26 and quote-specific) instead get the
+ * distinct solvable symbols actually present in `cipherTextTrim`. See CipherTypes.js for details.
+ */
+function getSymbolBank(cipherType, cipherTextTrim, isSpanish) {
+  if (cipherTypes[cipherType]?.symbolSource === 'ciphertext') {
+    return [...new Set(cipherTextTrim)].filter((chunk) => isSolvableChunk(chunk, cipherType));
+  }
+  const alphabet = isSpanish ? SPANISH_ALPHABET : ENGLISH_ALPHABET;
+  return alphabet.split('');
+}
+
 /** Initializes the cipher quote array with proper spacing based on cipher type. */
 export function initQuote(quoteArr, spacing, cipherType) {
   if (spacing === -1) return quoteArr;
@@ -23,22 +38,20 @@ export function initQuote(quoteArr, spacing, cipherType) {
   return spaced;
 }
 
-/** Creates an empty letter-to-input mapping for the alphabet. */
-export function initLetterInputs(isSpanish = false) {
-  const alphabet = isSpanish ? SPANISH_ALPHABET : ENGLISH_ALPHABET;
+/** Creates an empty symbol-to-input mapping, sized per the cipher's `symbolSource` (see above). */
+export function initLetterInputs(cipherType, cipherTextTrim, isSpanish = false) {
   const letterInputs = {};
-  alphabet.split('').forEach((letter) => {
-    letterInputs[letter] = '';
+  getSymbolBank(cipherType, cipherTextTrim, isSpanish).forEach((symbol) => {
+    letterInputs[symbol] = '';
   });
   return letterInputs;
 }
 
-/** Creates an empty letter-to-focus state mapping. */
-export function initLetterFocus(isSpanish = false) {
-  const alphabet = isSpanish ? SPANISH_ALPHABET : ENGLISH_ALPHABET;
+/** Creates an empty symbol-to-focus-state mapping, sized per the cipher's `symbolSource`. */
+export function initLetterFocus(cipherType, cipherTextTrim, isSpanish = false) {
   const letterFocus = {};
-  alphabet.split('').forEach((letter) => {
-    letterFocus[letter] = false;
+  getSymbolBank(cipherType, cipherTextTrim, isSpanish).forEach((symbol) => {
+    letterFocus[symbol] = false;
   });
   return letterFocus;
 }
