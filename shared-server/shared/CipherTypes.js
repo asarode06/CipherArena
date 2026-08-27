@@ -1,3 +1,27 @@
+/**
+ * Registry of cipher configs — the single source of truth for `cipherType`. Every place that
+ * needs to know what cipher types exist (the Mongoose enum in shared-server/game/Game.js, the
+ * /singleplayer/[cipherType] route guard, CipherUtil's encoder dispatch, Cipher.svelte's UI)
+ * derives from `Object.keys(cipherTypes)` or reads a field below — adding an entry here is what
+ * makes a new cipher type valid everywhere else.
+ *
+ * `symbolSource` and `letterComponent` exist specifically to let the frontend generalize past
+ * "classic 26-letter substitution" without hardcoding per-cipher checks in Cipher.svelte:
+ *   - symbolSource: 'alphabet' (the default) builds the shared letter-input bank
+ *     (`letterInputs`/`letterFocus` in cipherUtils.js, and FreqTable's rows) from the fixed
+ *     26/27-letter alphabet, so every letter shows even if unused in a given quote. Only matters
+ *     for `directMap: true` ciphers — that bank is where a guess typed for one occurrence of a
+ *     ciphertext symbol gets shared across every other occurrence of that same symbol; non-direct
+ *     ciphers store answers per-position instead (see `onChange` in Cipher.svelte) and never read
+ *     this bank. Use 'ciphertext' when a direct-map cipher's symbol set isn't the fixed alphabet
+ *     (e.g. homophonic substitution, where one plaintext letter can have several possible numeric
+ *     codes) — the bank is then built from the distinct symbols actually present in that quote's
+ *     ciphertext instead.
+ *   - letterComponent: 'default' renders the generic per-position `Letter.svelte` input.
+ *     Any other key must be registered in `LETTER_COMPONENTS` in Cipher.svelte and points at a
+ *     bespoke widget for ciphers whose ciphertext units aren't single typed letters (see
+ *     Baconian's A/B toggle buttons, Fractionated Morse's multi-slot trigram inputs).
+ */
 export const cipherTypes = {
   Aristocrat: {
     directMap: true,
@@ -9,6 +33,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   }, //! means no frontend visibility
   Xenocrypt: {
     directMap: true,
@@ -20,6 +46,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Patristocrat: {
     directMap: true,
@@ -31,6 +59,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Porta: {
     directMap: false,
@@ -42,6 +72,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: true,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Atbash: {
     directMap: false,
@@ -53,6 +85,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Caesar: {
     directMap: false,
@@ -64,6 +98,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Affine: {
     directMap: false,
@@ -75,6 +111,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Baconian: {
     directMap: false,
@@ -86,6 +124,8 @@ export const cipherTypes = {
     letterGap: true,
     bypassCheck: true,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'baconian',
   },
   Nihilist: {
     directMap: false,
@@ -97,6 +137,8 @@ export const cipherTypes = {
     letterGap: true,
     bypassCheck: true,
     stackKey: true,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Checkerboard: {
     directMap: false,
@@ -108,6 +150,8 @@ export const cipherTypes = {
     letterGap: true,
     bypassCheck: true,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   Hill: {
     directMap: false,
@@ -119,6 +163,8 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'default',
   },
   'Fractionated Morse': {
     directMap: false,
@@ -130,5 +176,7 @@ export const cipherTypes = {
     letterGap: false,
     bypassCheck: false,
     stackKey: false,
+    symbolSource: 'alphabet',
+    letterComponent: 'morse',
   },
 };

@@ -37,6 +37,18 @@
     calculateProgress,
   } from '$lib/util/cipherUtils.js';
 
+  /**
+   * Maps `cipherTypes[cipherType]['letterComponent']` to the widget that renders each ciphertext
+   * position. Most ciphers use the generic `Letter`; a cipher whose ciphertext units aren't
+   * single typed letters (Baconian's A/B toggles, Fractionated Morse's multi-slot trigram inputs)
+   * registers its own key here instead of Cipher.svelte hardcoding a per-cipherType branch.
+   */
+  const LETTER_COMPONENTS = {
+    default: Letter,
+    baconian: BaconianLetter,
+    morse: MorseLetter,
+  };
+
   let {
     quote,
     hash,
@@ -62,18 +74,22 @@
   let finalTime = $state(null);
   let debouncedProgressUpdate;
   let initialQuote = initQuote(quote, cipherTypes[cipherType]['spacing'], cipherType);
+  let initialTrim = initialQuote.filter((c) => c !== ' ');
 
   let info = $state({
     cipherText: initialQuote,
-    cipherTextTrim: initialQuote.filter((c) => c !== ' '),
-    letterInputs: initLetterInputs(spanish),
-    letterFocus: initLetterFocus(spanish),
+    cipherTextTrim: initialTrim,
+    letterInputs: initLetterInputs(cipherType, initialTrim, spanish),
+    letterFocus: initLetterFocus(cipherType, initialTrim, spanish),
     inputs: [],
   });
 
   let lettersWithIndices = initLettersWithIndices(initialQuote, cipherType, keys);
   let directMap = getDirectMap(cipherType);
   let paramString = paramToString(params);
+  let LetterComponent = $derived(
+    LETTER_COMPONENTS[cipherTypes[cipherType]['letterComponent']] ?? Letter
+  );
 
   const showCalculatorButton = MATH_INTENSIVE_CIPHERS.includes(cipherType);
   let calculatorVisible = $state(false);
@@ -84,7 +100,7 @@
   let lastFocusedInputIndex = $state(-1);
 
   function clearQuote() {
-    info.letterInputs = initLetterInputs(spanish);
+    info.letterInputs = initLetterInputs(cipherType, info.cipherTextTrim, spanish);
     for (let input of info.inputs) {
       if (input != undefined) {
         input.value = '';
@@ -384,53 +400,26 @@
     {#each lettersWithIndices as word}
       <div class="word">
         {#each word as { letter, index, keyLetter }}
-          {#if cipherType === 'Fractionated Morse'}
-            <MorseLetter
-              bind:inputs={info.inputs}
-              cipherLetter={letter}
-              {index}
-              trigramInputs={info.trigramInputs || {}}
-              slots={slotDistribution[index] || []}
-              {autoFocus}
-              {onArrow}
-              {onFocus}
-              {onChange}
-              {solved}
-            />
-          {:else if cipherType === 'Baconian'}
-            <BaconianLetter
-              bind:inputs={info.inputs}
-              cipherLetter={letter}
-              {index}
-              inputValue={info.letterInputs[letter]}
-              selected={info.letterFocus[letter]}
-              {onArrow}
-              {onFocus}
-              {onChange}
-              {solved}
-              {cipherType}
-              {checkQuote}
-            />
-          {:else}
-            <Letter
-              bind:inputs={info.inputs}
-              letterInputs={info.letterInputs}
-              cipherLetter={letter}
-              {index}
-              inputValue={info.letterInputs[letter]}
-              selected={info.letterFocus[letter]}
-              {directMap}
-              {autoFocus}
-              {onArrow}
-              {onFocus}
-              {onChange}
-              {solved}
-              {cipherType}
-              {keyLetter}
-              {checkQuote}
-              {spanish}
-            />
-          {/if}
+          <LetterComponent
+            bind:inputs={info.inputs}
+            letterInputs={info.letterInputs}
+            cipherLetter={letter}
+            {index}
+            inputValue={info.letterInputs[letter]}
+            selected={info.letterFocus[letter]}
+            {directMap}
+            {autoFocus}
+            {onArrow}
+            {onFocus}
+            {onChange}
+            {solved}
+            {cipherType}
+            {keyLetter}
+            {checkQuote}
+            {spanish}
+            trigramInputs={info.trigramInputs || {}}
+            slots={slotDistribution[index] || []}
+          />
         {/each}
       </div>
     {/each}
