@@ -22,6 +22,7 @@
   import Calculator from './Calculator.svelte';
   import MorseTable from './MorseTable.svelte';
   import MorseLetter from './MorseLetter.svelte';
+  import HomophonicTable from './HomophonicTable.svelte';
   import { debounce } from '$lib/util/helpers.js';
   import { MATH_INTENSIVE_CIPHERS, GAME_MODES } from '$lib/util/constants.js';
   import {
@@ -111,7 +112,7 @@
       debouncedProgressUpdate();
     }
 
-    if (cipherType == 'Nihilist' || cipherType == 'Checkerboard') {
+    if (cipherType == 'Nihilist' || cipherType == 'Checkerboard' || cipherType == 'Homophonic') {
       clearPolybius = true;
     }
 
@@ -452,6 +453,8 @@
     {/if}
   {:else if cipherTypes[cipherType]['addOn'] == 'morseTable'}
     <MorseTable bind:info {solved} {autoFocus} {crib} />
+  {:else if cipherTypes[cipherType]['addOn'] == 'homophonicTable'}
+    <HomophonicTable {autoFocus} {clearPolybius} {resetClear} />
   {/if}
 
   <div class="buttons">

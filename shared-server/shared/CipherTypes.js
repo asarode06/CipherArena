@@ -179,4 +179,17 @@ export const cipherTypes = {
     symbolSource: 'alphabet',
     letterComponent: 'morse',
   },
+  Homophonic: {
+    directMap: true,
+    keys: ['!', 'keyword'],
+    addOn: 'homophonicTable',
+    spacing: 5,
+    length: [90, 130],
+    options: [],
+    letterGap: true,
+    bypassCheck: true,
+    stackKey: false,
+    symbolSource: 'ciphertext',
+    letterComponent: 'default',
+  },
 };

@@ -13,4 +13,11 @@ export const announcements = [
     dismissible: true,
     type: 'info', // info, warning, success
   },
+  {
+    id: 'update-v2',
+    text: 'UPDATE: New Homophonic cipher! [Check it out!](https://cipherarena.com/singleplayer/Homophonic)',
+    active: true,
+    dismissible: true,
+    type: 'info', // info, warning, success
+  },
 ];
