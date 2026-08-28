@@ -142,6 +142,14 @@ picking the right template, not inventing new mechanics.
 5. **Coordinate/Polybius ciphers, `bypassCheck: true`** — Nihilist, Checkerboard. Ciphertext units
    are multi-digit/multi-char (e.g. `"34"` or a row+col letter pair), so `isSolvableChunk` can't
    require length-1 chunks — `bypassCheck: true` turns that check into "non-empty" instead.
+   **This has a sharp edge**: because `isSolvableChunk` then treats _any_ non-empty chunk as real
+   puzzle data, a `bypassCheck: true` encoder must strip non-letters entirely (`stripQuote`) before
+   encoding — it can _not_ pass punctuation through as its own chunk the way Caesar/Atbash/Affine
+   do (all `bypassCheck: false`, where a stray punctuation chunk is harmlessly excluded downstream
+   instead). Getting this backwards produces a real bug, not just a display glitch: the stray
+   chunk gets miscounted into `spacing` groups _and_ gets its own unanswerable input box, which
+   misaligns the submitted-answer string against `stripQuote(plaintext)` at validation time. Hit
+   this exact bug building Homophonic — see `docs/homophonic-cipher-plan.md` §5.
    Checkerboard's `keys` is `['!', '!', 'polybius key']` — two _hidden_ internal keys (the
    row/column header letters) plus one visible one; its square-builder
    (`CheckerboardTable.svelte`) is PolybiusSquare's layout with extra `-1`-indexed header inputs
@@ -171,6 +179,25 @@ picking the right template, not inventing new mechanics.
    input-slot positions per letter, because one plaintext letter's input can span a
    variable-width run of trigram slots plus word-separator slots — nothing else in the app has
    this many-ciphertext-slots-per-plaintext-letter relationship.
+8. **`symbolSource: 'ciphertext'` and a local-scratchpad addon — Homophonic.** `directMap: true`
+   like Aristocrat, but each plaintext letter has up to 4 possible ciphertext codes (its
+   "homophones"), so the classic 26-letter answer bank doesn't fit — `symbolSource: 'ciphertext'`
+   builds it from the codes actually present in this quote instead (see "The letter-input bank"
+   above). Its addon (`HomophonicTable.svelte`, a 100-cell number→letter reference grid) is
+   deliberately **not** wired to the shared `info.letterInputs` dict the way `FreqTable` is for
+   Aristocrat — it holds its own local state, same as `PolybiusSquare`/`CheckerboardTable`, and
+   is added to `clearQuote()`'s hardcoded reset check alongside them. This was a real design
+   mistake in the first pass, not just a style choice: for a 1:1 substitution cipher like
+   Aristocrat, sharing state between the reference table and the puzzle is _correct_ — filling in
+   what a ciphertext letter means should update everywhere it appears. For a homophonic cipher
+   that's _too generous_: it turns the reference table into an instant auto-fill for the whole
+   puzzle instead of a scratchpad the player fills in through their own reasoning. `keys` is
+   `['!', 'keyword']`: index 0 is the real 4-letter keyword (hidden, used only server-side to
+   build the homophone table), index 1 is a partial-reveal crib string generated separately (see
+   `shared-server/game/homophonicKeywords.js`) — same "index 1 isn't a real key" pattern
+   Fractionated Morse uses for its crib. Also the first cipher to demonstrate the
+   `bypassCheck: true` sharp edge documented above: its encoder must strip non-letters via
+   `stripQuote` rather than passing them through.
 
 ### Step-by-step checklist
 

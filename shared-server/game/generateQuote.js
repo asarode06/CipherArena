@@ -4,6 +4,7 @@ import { Word } from '../models/Word.js';
 import { cipherTypes } from '../shared/CipherTypes.js';
 import { encodeQuote, findDeterminant } from '../shared/CipherUtil.js';
 import { encryptText } from '../utils/textEncode.js';
+import { generateHomophonicCrib } from './homophonicKeywords.js';
 
 export async function generateQuote(p) {
   const randomQuote = await findRandomEntry(getQuoteModel(p['cipherType']), {
@@ -21,6 +22,10 @@ export async function generateQuote(p) {
     keys.push(
       Math.random() < 0.5 ? Math.floor(Math.random() * 26) - 26 : Math.floor(Math.random() * 25) + 1
     );
+  } else if (p['cipherType'] == 'Homophonic') {
+    const { keyword, cribDisplay } = generateHomophonicCrib();
+    keys.push(keyword);
+    keys.push(cribDisplay);
   } else {
     for (let keyName of keyCount) {
       let randomWord = '';
@@ -48,7 +53,11 @@ export async function generateQuote(p) {
   let encodedQuote;
   let crib = null;
 
-  if (p['Solve'] == 'Decode' || p['cipherType'] == 'Fractionated Morse') {
+  if (
+    p['Solve'] == 'Decode' ||
+    p['cipherType'] == 'Fractionated Morse' ||
+    p['cipherType'] == 'Homophonic'
+  ) {
     const result = encodeQuote(
       randomQuote['text'],
       p['cipherType'] == 'Patristocrat' ? 'Aristocrat' : p['cipherType'],

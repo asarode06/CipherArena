@@ -66,6 +66,7 @@ export function encodeQuote(plaintext, cipherType, keys, params) {
     Hill: () => encodeHill(plaintext, keys[0]),
     Affine: () => encodeAffine(plaintext, keys[0], keys[1]),
     'Fractionated Morse': () => encodeFractionatedMorse(plaintext, keys[0]),
+    Homophonic: () => encodeHomophonic(plaintext, keys[0]),
   };
 
   return (encoders[cipherType] || (() => encodeAristocrat(plaintext, '0')))();
@@ -796,6 +797,53 @@ function encodeAffine(plaintext, a, b) {
       const encodedNum = (((a * num + b) % 26) + 26) % 26;
       ciphertext.push(numberToLetter(encodedNum));
     }
+  }
+
+  return ciphertext;
+}
+
+/**
+ * Builds the {letter: [4 two-digit code strings]} homophone table for a 4-letter keyword. Each of
+ * the keyword's 4 letters seeds one 25-number block (01-25, 26-50, 51-75, 76-00) by rotating a
+ * 25-letter alphabet (I/J combined, same convention as generatePolybiusSquare/
+ * generateCheckerboardSquare above) to start at that letter — see
+ * docs/homophonic-cipher-plan.md §2 for the worked example this was verified against.
+ */
+export function buildHomophonicTable(keyword) {
+  const alphabet = 'ABCDEFGHIKLMNOPQRSTUVWXYZ'; // I/J combined
+  const upperKeyword = keyword.toUpperCase().replace(/J/g, 'I');
+  const table = {};
+
+  for (let block = 0; block < 4; block++) {
+    const startIdx = alphabet.indexOf(upperKeyword[block]);
+    for (let i = 0; i < 25; i++) {
+      const letter = alphabet[(startIdx + i) % 25];
+      const number = block * 25 + i + 1;
+      const code = number === 100 ? '00' : String(number).padStart(2, '0');
+      (table[letter] ??= []).push(code);
+    }
+  }
+
+  table['J'] = table['I']; // J shares I's homophones, same convention as Nihilist/Checkerboard
+  return table;
+}
+
+/**
+ * Encodes plaintext using the homophonic cipher: each letter gets a random one of its 4 codes per
+ * occurrence. Non-letters are stripped entirely (not passed through as their own chunk) — same
+ * convention as Nihilist/Checkerboard, and required by it: this cipher is `bypassCheck: true`, so
+ * `isSolvableChunk` treats *any* non-empty chunk as solvable puzzle data. A pass-through
+ * punctuation chunk (the convention Caesar/Atbash/Affine use, all `bypassCheck: false`) would get
+ * miscounted into the spacing groups and get its own (unanswerable) input box.
+ */
+function encodeHomophonic(plaintext, keyword) {
+  const table = buildHomophonicTable(keyword);
+  const stripped = stripQuote(plaintext, false);
+  const ciphertext = [];
+
+  for (let letter of stripped) {
+    const codes = table[letter];
+    ciphertext.push(codes[Math.floor(Math.random() * codes.length)]);
   }
 
   return ciphertext;
