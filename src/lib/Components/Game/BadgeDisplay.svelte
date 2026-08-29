@@ -242,9 +242,15 @@
     margin: 1.5rem auto;
   }
 
+  /* Same "section eyebrow" treatment as the profile page's other section headers (Speed
+     Records/Speed Profile/Account Settings) — this component also renders on the landing page, so
+     keep this scoped to the label only, not a wider redesign. */
   .badge-display-wrapper h3 {
-    font-size: 1.2rem;
-    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
     margin-bottom: 0.8rem;
   }
 
@@ -414,15 +420,21 @@
     transform: scale(1.1);
   }
 
+  /* Matches the "hero" text scale QuoteInsights.svelte's .speed-title uses (1.4rem/700) for the
+     one other emphasized headline on this page — this one is informational rather than a
+     personalized result, so it stays a neutral color instead of that one's purple. */
   .no-badges h4 {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
+    font-weight: 700;
     margin-top: 1rem;
-    color: var(--color-neutral-400);
+    color: var(--text-primary);
   }
 
+  /* Same 0.9rem/text-tertiary body-copy scale used under every other section eyebrow on this
+     page. */
   .no-badges p {
-    font-size: 0.95rem;
-    color: var(--color-neutral-600);
+    font-size: 0.9rem;
+    color: var(--text-tertiary);
     margin: 0.5rem 0 1rem;
   }
 
@@ -432,7 +444,9 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.1);
     color: white;
-    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 700;
     backdrop-filter: blur(10px);
     transition: background 0.3s ease;
     cursor: pointer;

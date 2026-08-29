@@ -277,8 +277,27 @@ letter-input bank" above), and the letter-input bank's symbol set (`initLetterIn
 practice-problem generation/checking (`generate`/`check`/`ping`/`stats` actions) — it does **not**
 solve or decode ciphers for game opponents. Auto-shuts-down after 30 min idle.
 
+## Known tech debt
+
+- **`UserGame.singleplayerStats` read-modify-write races with multiplayer fields on the same
+  document.** `statsUtil.js`'s `incrementTotal`/`incrementWin` do `UserGame.findById(userId)` →
+  mutate → `.save()` on every singleplayer quote generation/solve. That's the same document that
+  `currentSocketId`/`currentGame` live on, which `ws/connectionHandler.js`/`joinGame.js` rewrite
+  constantly during multiplayer matchmaking/live games — a `.save()` built from a stale read can
+  clobber a concurrent multiplayer-field change (or vice versa). This predates and is unrelated to
+  the singleplayer-quote-stats work (see `docs/singleplayer-stats-plan.md`), which deliberately
+  keeps its own new per-quote/per-user data in separate collections (`QuoteStats`,
+  `UserQuoteInsights`) rather than adding to this same risk on `UserGame`. Fixing this properly
+  doesn't require moving `singleplayerStats` to a new collection — swapping the `findById` →
+  mutate → `.save()` pattern for atomic `updateOne`/`$inc` calls (same collection) would remove the
+  race without a data migration. Not fixed yet; flagging so it isn't lost.
+
 ## Conventions
 
+- **Comments and commit messages.** Short sentences. Use RFC 2119 keywords (MUST/SHOULD/MAY/etc.)
+  for obligations and constraints, not hedging prose. Commit messages: imperative-mood subject;
+  only add a body for a fact the diff itself cannot show (the _why_, not the _what_). Write a
+  comment only where the code needs clarification — never to narrate what the code already says.
 - Formatting/linting is enforced by Husky + lint-staged + Prettier on every commit — don't spend
   effort hand-formatting.
 - Cipher-specific letter/number helpers (`isLetter`, `letterToNumber`, `numberToLetter`,

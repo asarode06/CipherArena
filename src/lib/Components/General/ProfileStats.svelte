@@ -1,10 +1,10 @@
 <script>
   import { cipherTypes } from '$shared/CipherTypes.js';
-  let { stats, singleStats, simple = false } = $props();
+  // `statMode` is bindable so a parent (e.g. the profile page, gating Speed Records/Speed Profile
+  // to singleplayer only) can read which mode is currently selected here.
+  let { stats, singleStats, simple = false, statMode = $bindable('multiplayer') } = $props();
 
   const orderedStatKeys = ['All', ...Object.keys(cipherTypes)];
-
-  let statMode = $state('multiplayer'); // 'multiplayer' or 'singleplayer'
 
   function winPercent(stat) {
     const info = stat ?? { wins: 0, losses: 0, total: 0 };
