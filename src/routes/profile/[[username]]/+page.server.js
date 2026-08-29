@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { UserGame } from '$game/UserGame';
+import { UserQuoteInsights } from '$models/UserQuoteInsights';
 import { authenticate } from '$utils/authenticate.js';
 import { UserAuth } from '$models/UserAuth';
 import { createVerificationToken } from '$auth/verify';
@@ -33,11 +34,16 @@ export async function load({ params, cookies }) {
     isOwnProfile = true;
   }
 
+  // Denormalized per-cryptogram insights: a point-read by primary key, not a query against
+  // QuoteStats. See docs/singleplayer-stats-plan.md §8.
+  const quoteInsights = await UserQuoteInsights.findById(profileUser._id).lean();
+
   return {
     username: profileUser.username,
     profilePicture: profileUser.profilePicture,
     stats: JSON.stringify(profileUser.stats),
     singleplayerStats: JSON.stringify(profileUser.singleplayerStats),
+    quoteInsights: JSON.stringify(quoteInsights ?? null),
     isOwnProfile,
     email: isOwnProfile ? (cookies.get('email') ?? '') : '',
   };

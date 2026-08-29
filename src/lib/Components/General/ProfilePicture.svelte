@@ -57,7 +57,14 @@
   }
 
   function handleError() {
+    // MUST also clear `loading` here, not just re-point `src` — the render guard below is
+    // `!loading || src !== '/default-avatar.webp'`, so leaving `loading` true while `src` is
+    // already the default avatar makes both sides false and permanently hides the <img>, even
+    // once it points at a URL (the local default asset) that will actually load fine. Without
+    // this, any failed fetch — CORS-blocked, deleted S3 object, network blip — gets stuck in an
+    // infinite spinner instead of falling back to the default avatar.
     src = '/default-avatar.webp';
+    loading = false;
   }
 </script>
 
@@ -83,7 +90,7 @@
       {src}
       alt=""
       class="avatar"
-      crossorigin="anonymous"
+      crossorigin={useColorRing ? 'anonymous' : undefined}
       onload={handleLoad}
       onerror={handleError}
       style="display: block"

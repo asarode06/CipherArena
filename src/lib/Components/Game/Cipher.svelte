@@ -5,7 +5,6 @@
   import FreqTable from './FreqTable.svelte';
   import Container from '../General/Container.svelte';
   import { isSolvableChunk } from '$shared/CipherUtil';
-  import { Confetti } from 'svelte-confetti';
   import { cipherTypes } from '$shared/CipherTypes';
   import LoadingOverlay from '../General/LoadingOverlay.svelte';
   import { fade } from 'svelte/transition';
@@ -59,16 +58,13 @@
     keys,
     onSolved,
     mode,
-    newProblem,
     fetchAnswerStatus,
     onProgressUpdate,
-    autoSwitch,
     crib = {},
   } = $props();
   let spanish = cipherType == 'Xenocrypt';
   let startTime = Date.now() / 1000;
   let solved = $state(false);
-  let gaveUp = $state(false);
   let isChecking = $state(false);
   let submissionError = $state(false);
   let clearPolybius = $state(false);
@@ -460,13 +456,7 @@
   <div class="buttons">
     {#if !solved}
       <button class="button" onclick={clearQuote}>Clear</button>
-    {/if}
-    {#if (mode === GAME_MODES.SINGLEPLAYER && !autoSwitch) || !solved}
-      <button
-        class="button"
-        onclick={solved && mode === GAME_MODES.SINGLEPLAYER ? newProblem : checkQuote}
-        >{solved && mode === GAME_MODES.SINGLEPLAYER ? 'New Problem' : 'Submit'}</button
-      >
+      <button class="button" onclick={checkQuote}>Submit</button>
     {/if}
   </div>
   {#if submissionError}
@@ -509,31 +499,6 @@
     bind:calculatorFocused
     {toggleCalculator}
   />
-{/if}
-
-{#if solved && mode == 'singleplayer' && !gaveUp}
-  <div
-    style="
-    position: fixed;
-    z-index: 25;
-    top: -3vh;
-    left: 0;
-    height: 100vh;
-    width: 100vw;
-    display: flex;
-    justify-content: center;
-    overflow: hidden;
-    pointer-events: none;"
-  >
-    <Confetti
-      duration="3000"
-      x={[-5, 5]}
-      delay={[0, 3000]}
-      amount="200"
-      fallDistance="100vh"
-      colorRange={[75, 175]}
-    />
-  </div>
 {/if}
 
 <style>

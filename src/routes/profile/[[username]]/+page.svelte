@@ -1,25 +1,34 @@
 <script>
   import EditableProfilePicture from '$lib/Components/General/EditableProfilePicture.svelte';
   import ProfileStats from '$lib/Components/General/ProfileStats.svelte';
+  import QuoteInsights from '$lib/Components/General/QuoteInsights.svelte';
   import BadgeDisplay from '$lib/Components/Game/BadgeDisplay.svelte';
   import { getUnlockedBadges } from '$lib/util/badgeConfig.js';
   import '$lib/css/Button.css';
   import { cipherTypes } from '$shared/CipherTypes.js';
-  import SolveTimeHistogram from '$lib/Components/Game/SolveTimeHistogram.svelte';
+  import SolveTimeBellCurve from '$lib/Components/Game/SolveTimeBellCurve.svelte';
   import ConfirmDeleteModal from '$lib/Components/General/ConfirmDeleteModal.svelte';
 
   let { data } = $props();
-  let { username, profilePicture, stats, singleplayerStats, isOwnProfile, email } = data;
+  let { username, profilePicture, stats, singleplayerStats, quoteInsights, isOwnProfile, email } =
+    data;
 
   let profileStats = stats ? JSON.parse(stats) : {};
   let singleStats = singleplayerStats ? JSON.parse(singleplayerStats) : {};
+  let insights = quoteInsights ? JSON.parse(quoteInsights) : null;
   let uploadError = $state('');
   let updatingEmail = $state(false);
   let unlockedBadgeIds = $derived(getUnlockedBadges(profileStats, singleStats).map((b) => b.id));
 
-  let selectedCipher = $state('All');
-  let cipherOptions = ['All', ...Object.keys(cipherTypes)];
+  // No "All" option: the bell curve is a single-mode normal approximation, and pooling solve
+  // times across every cipher type would blend genuinely different distributions (Caesar vs.
+  // Fractionated Morse solve times, say) into one misleading pseudo-bell-curve.
+  let cipherOptions = Object.keys(cipherTypes);
+  let selectedCipher = $state(cipherOptions[0]);
   let showDeleteModal = $state(false);
+  // Speed Records/Speed Profile are singleplayer-only data — gated on ProfileStats' own
+  // multiplayer/singleplayer toggle rather than duplicating a second selector.
+  let statMode = $state('multiplayer');
 
   function onUploadError(error) {
     uploadError = error;
@@ -33,6 +42,63 @@
       arr.map((entry) => (entry.length > 0 ? entry.time / entry.length : 0));
 
     return [...normalized(multi), ...normalized(single)];
+  }
+
+  // The distribution chart is an analytic bell curve (see SolveTimeBellCurve.svelte, also used on
+  // the singleplayer results page), not a plot of these raw samples — mean/std are computed from
+  // them here since, unlike QuoteStats, this per-user data was never stored as running sums.
+  function meanAndStd(values) {
+    if (!values.length) return { mean: 0, std: 0 };
+    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+    return { mean, std: Math.sqrt(variance) };
+  }
+
+  // Solve time here is raw wall-clock elapsed time with no idle/pause detection (see
+  // Cipher.svelte/+page.svelte's startTime) — a puzzle left open and finished much later is a
+  // genuine, real data point, not a measurement error, but it says nothing about actual solving
+  // speed. More samples make a normal distribution's mean/std estimate more PRECISE; they do NOT
+  // make it more robust to outliers — variance is driven by squared deviation from the mean, so a
+  // handful of extreme values dominate it regardless of how much well-behaved data surrounds them.
+  // Tukey's fences (exclude values beyond Q3 + 1.5×IQR, a standard outlier rule) give a curve shape
+  // representative of *typical* solves instead of one dragged around by a few distracted sessions.
+  function trimOutliers(values) {
+    if (values.length < 4) return values;
+    const sorted = [...values].sort((a, b) => a - b);
+    const q1 = sorted[Math.floor(sorted.length * 0.25)];
+    const q3 = sorted[Math.floor(sorted.length * 0.75)];
+    const upperFence = q3 + 1.5 * (q3 - q1);
+    return values.filter((v) => v <= upperFence);
+  }
+
+  // MUST match shared-server/utils/quoteStatsUtil.js's classifyPerformance() thresholds (±0.5σ,
+  // ±1.5σ) — duplicated here rather than imported since that file pulls in server-only (mongoose)
+  // dependencies that can't ship to the client. Only pure math, so it's cheap to keep in sync.
+  function classifyPerformance(zScore) {
+    if (zScore < -1.5) return 'veryFast';
+    if (zScore < -0.5) return 'fast';
+    if (zScore <= 0.5) return 'average';
+    if (zScore <= 1.5) return 'slow';
+    return 'verySlow';
+  }
+
+  // How many of this cipher's raw samples fall in each SolveTimeBellCurve zone — the bell curve
+  // itself only ever sees (mean, std), so this is computed here where the raw samples still exist.
+  function getZoneCounts(values, mean, std) {
+    const counts = { veryFast: 0, fast: 0, average: 0, slow: 0, verySlow: 0 };
+    if (!std) return counts;
+    for (const value of values) {
+      counts[classifyPerformance((value - mean) / std)]++;
+    }
+    return counts;
+  }
+
+  // These values are seconds-PER-CHARACTER, not a solve duration — SolveTimeBellCurve's default
+  // mm:ss formatter assumes raw seconds (right for the singleplayer results page, where it's
+  // reused from) and would render this rate as an unreadable "0:00"/"0:01" clock time instead.
+  function formatSecondsPerChar(value) {
+    if (value == null || isNaN(value)) return '—';
+    return `${value.toFixed(2)}s/char`;
   }
 </script>
 
@@ -58,8 +124,14 @@
   </div>
 
   <div class="stats-wrapper animate-stats-float">
-    <ProfileStats stats={profileStats} {singleStats} />
+    <ProfileStats stats={profileStats} {singleStats} bind:statMode />
   </div>
+
+  {#if statMode === 'singleplayer'}
+    <div class="stats-wrapper insights-wrapper animate-stats-float">
+      <QuoteInsights quoteInsights={insights} />
+    </div>
+  {/if}
 
   <div class="divider-section animate-divider-expand">
     <hr class="glass-divider" />
@@ -78,7 +150,17 @@
     </div>
 
     {#if getSolveTimes(selectedCipher).length}
-      <SolveTimeHistogram solveTimes={getSolveTimes(selectedCipher)} cipherType={selectedCipher} />
+      {@const times = getSolveTimes(selectedCipher)}
+      {@const { mean, std } = meanAndStd(trimOutliers(times))}
+      <SolveTimeBellCurve
+        {mean}
+        {std}
+        solves={times.length}
+        emptyMessage="Solve a few more {selectedCipher} cryptograms to see your distribution."
+        formatValue={formatSecondsPerChar}
+        zoneCounts={getZoneCounts(times, mean, std)}
+        actualMax={Math.max(...times)}
+      />
     {:else}
       <p class="no-data">No solve time data available for {selectedCipher}.</p>
     {/if}
@@ -92,14 +174,12 @@
     <section>
       <div class="settings-header">
         <h2>Account settings</h2>
-        <p class="subtle">Manage your email and account preferences.</p>
       </div>
 
       <div class="settings-cards">
         <form method="POST" action="?/updateEmail" class="settings-card email-card">
           <div class="card-header">
             <h3>Email address</h3>
-            <p class="subtle">Update the email used for login and notifications.</p>
           </div>
           <div class="field">
             <label for="email">New email</label>
@@ -143,7 +223,6 @@
         <div class="settings-card danger-card">
           <div class="card-header">
             <h3>Danger Zone</h3>
-            <p class="subtle">This action is permanent and cannot be undone.</p>
           </div>
           <p class="subtle more-info">
             Deleting your account will remove your profile, stats, badges, game history, and any
@@ -250,6 +329,10 @@
   .stats-wrapper {
     position: relative;
     z-index: 2;
+  }
+
+  .insights-wrapper {
+    padding-top: 2rem;
   }
 
   .animate-glass-emerge {
@@ -431,15 +514,13 @@
   }
   .settings-header h2 {
     text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
     margin: 0 0 0.25rem 0;
   }
-  .settings-header .subtle {
-    margin: 0;
-    color: var(--text-tertiary);
-    opacity: 0.9;
-    font-size: 0.95rem;
-  }
-
   .settings-cards {
     display: grid;
     grid-template-columns: 1fr;
@@ -470,6 +551,11 @@
   }
 
   .settings-card h3 {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
     margin: 0 0 0.25rem 0;
   }
   .settings-card .subtle {
@@ -489,6 +575,7 @@
     gap: 0.5rem;
   }
   .field label {
+    font-size: 0.9rem;
     font-weight: 600;
   }
 
