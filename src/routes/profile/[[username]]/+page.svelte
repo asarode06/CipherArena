@@ -60,15 +60,20 @@
   // speed. More samples make a normal distribution's mean/std estimate more PRECISE; they do NOT
   // make it more robust to outliers — variance is driven by squared deviation from the mean, so a
   // handful of extreme values dominate it regardless of how much well-behaved data surrounds them.
-  // Tukey's fences (exclude values beyond Q3 + 1.5×IQR, a standard outlier rule) give a curve shape
-  // representative of *typical* solves instead of one dragged around by a few distracted sessions.
-  function trimOutliers(values) {
-    if (values.length < 4) return values;
+  // Tukey's fences (exclude values beyond Q3 + 1.5×IQR, a standard outlier rule) split the samples
+  // into a `kept` set — used for a curve shape representative of *typical* solves instead of one
+  // dragged around by a few distracted sessions — and the excluded `outliers` themselves, which
+  // SolveTimeBellCurve can reveal as real points on demand rather than silently discarding.
+  function splitOutliers(values) {
+    if (values.length < 4) return { kept: values, outliers: [] };
     const sorted = [...values].sort((a, b) => a - b);
     const q1 = sorted[Math.floor(sorted.length * 0.25)];
     const q3 = sorted[Math.floor(sorted.length * 0.75)];
     const upperFence = q3 + 1.5 * (q3 - q1);
-    return values.filter((v) => v <= upperFence);
+    return {
+      kept: values.filter((v) => v <= upperFence),
+      outliers: values.filter((v) => v > upperFence),
+    };
   }
 
   // MUST match shared-server/utils/quoteStatsUtil.js's classifyPerformance() thresholds (±0.5σ,
@@ -151,7 +156,8 @@
 
     {#if getSolveTimes(selectedCipher).length}
       {@const times = getSolveTimes(selectedCipher)}
-      {@const { mean, std } = meanAndStd(trimOutliers(times))}
+      {@const { kept, outliers } = splitOutliers(times)}
+      {@const { mean, std } = meanAndStd(kept)}
       <SolveTimeBellCurve
         {mean}
         {std}
@@ -159,7 +165,7 @@
         emptyMessage="Solve a few more {selectedCipher} cryptograms to see your distribution."
         formatValue={formatSecondsPerChar}
         zoneCounts={getZoneCounts(times, mean, std)}
-        actualMax={Math.max(...times)}
+        {outliers}
       />
     {:else}
       <p class="no-data">No solve time data available for {selectedCipher}.</p>
