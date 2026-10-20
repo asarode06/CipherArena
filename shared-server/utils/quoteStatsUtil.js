@@ -115,6 +115,14 @@ export async function bumpQuoteSolve({
     });
   }
 
+  // Pre-solve moments: the field this solve is being measured against. These MUST also be what
+  // the results page's bell curve is drawn from — its zone boundaries are mean +/- 0.5/1.5 std, so
+  // feeding it the post-solve moments below instead puts the "You" line in a different zone than
+  // the badge says. Including your own solve pulls the mean toward you and inflates std, so the
+  // disagreement is systematic (the curve always reads one zone less extreme), worst at small
+  // populations.
+  const { mean: curveMean, std: curveStd } = meanAndStd(previousSum, previousSumSq, previousSolves);
+
   // Below MIN_POPULATION_FOR_BUCKETING prior solves, there isn't a real population to compare
   // against yet — skip bucketing entirely (no performanceBucket shown on the results page for
   // this solve, no contribution to UserQuoteInsights) rather than compute a low-confidence one.
@@ -122,8 +130,7 @@ export async function bumpQuoteSolve({
   // doesn't count toward the solver's Speed Profile would be a confusing mismatch.
   let performanceBucket = null;
   if (previousSolves >= MIN_POPULATION_FOR_BUCKETING) {
-    const { mean, std } = meanAndStd(previousSum, previousSumSq, previousSolves);
-    const zScore = std > 0 ? (solveTime - mean) / std : 0;
+    const zScore = curveStd > 0 ? (solveTime - curveMean) / curveStd : 0;
     performanceBucket = classifyPerformance(zScore);
 
     if (userId) {
@@ -144,9 +151,9 @@ export async function bumpQuoteSolve({
     : (pre?.bestSolveProfilePicture ?? null);
   // One bucket = one plaintext, so raw solveTime is already comparable across solvers — no
   // per-character length normalization, unlike the profile's cross-quote histogram. Post-solve
-  // population (includes this solve): the results page bell curve is the normal approximation of
-  // this mean/std, not a plot of raw samples.
-  const { mean: averageSolveTime, std: stdSolveTime } = meanAndStd(
+  // population (includes this solve): this is the "Average Time" the results page displays, NOT
+  // what its bell curve is built from — that uses curveMean/curveStd above.
+  const { mean: averageSolveTime } = meanAndStd(
     previousSum + solveTime,
     previousSumSq + solveTime * solveTime,
     solves
@@ -157,7 +164,12 @@ export async function bumpQuoteSolve({
     solves,
     successRate: attempts > 0 ? Math.min(1, solves / attempts) : 0,
     averageSolveTime,
-    stdSolveTime,
+    // The bell curve's population: pre-solve moments and pre-solve count. The count is reported
+    // separately from `solves` so the curve honors the same MIN_POPULATION_FOR_BUCKETING gate the
+    // badge does — otherwise a solve with 2 predecessors would draw a curve with no badge.
+    curveMean,
+    curveStd,
+    curvePopulation: previousSolves,
     bestSolveTime,
     bestSolveUsername,
     bestSolveProfilePicture,

@@ -171,10 +171,10 @@
       </div>
 
       <SolveTimeBellCurve
-        mean={stats.averageSolveTime}
-        std={stats.stdSolveTime}
+        mean={stats.curveMean}
+        std={stats.curveStd}
         yourTime={stats.yourTime}
-        solves={stats.solves}
+        solves={stats.curvePopulation}
       />
 
       <div class="difficulty-widget">

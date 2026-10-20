@@ -147,6 +147,13 @@ New util `shared-server/utils/quoteStatsUtil.js`:
      It still counts fully toward `solves`/`bestSolveTime` etc. in step 2 regardless — this only
      gates the speed-profile signal, not the core stats.
 
+     The pre-solve mean/stdev used here are also returned as `curveMean`/`curveStd` (with
+     `curvePopulation` = the pre-solve `solves`) and are what §7's bell curve MUST be drawn from.
+     The curve's zone boundaries are those same mean +/- 0.5/1.5 stdev cutoffs, so drawing it from
+     the post-solve moments instead put the "You" marker in a different zone than the badge named:
+     folding your own time in pulls the mean toward you and inflates the stdev, so the curve always
+     read one zone less extreme, worst at small populations.
+
   Bucket thresholds (shared with §7's per-solve display, one exported classifier so the numbers
   can't drift between the two call sites): `z < -1.5` Very Fast, `z < -0.5` Fast, `-0.5 ≤ z ≤ 0.5`
   Average, `z ≤ 1.5` Slow, else Very Slow.
@@ -162,7 +169,8 @@ Extend `validate-quote`'s success response (today a bare `json(true)`) to an obj
   author: quote.author,       // requires selecting `author` in the existing findOne query
   stats: {
     attempts, solves, successRate,          // successRate = solves / attempts
-    averageSolveTime, stdSolveTime,         // post-solve mean/stdev — feeds the bell curve, §7
+    averageSolveTime,                       // post-solve mean — the "Average Time" tile only
+    curveMean, curveStd, curvePopulation,   // PRE-solve moments/count — feeds the bell curve, §7
     bestSolveTime, bestSolveUsername, isNewRecord,
     yourTime, performanceBucket,
     avgDifficulty, difficultyCount,         // from QuoteStats, pre-this-visitor's-vote
@@ -200,7 +208,7 @@ in `+page.svelte` (only read by `Popup`'s `onExit` autoswitch check) and a separ
   `/profile/{username}` when not anonymous, "Anonymous User" text otherwise), Your Time,
   Performance badge (colored via `--color-success`/`--color-warning`/`--color-error`).
 - Distribution chart: `SolveTimeBellCurve.svelte` (new) — an analytic normal-distribution curve
-  computed purely from `stats.averageSolveTime`/`stats.stdSolveTime`/`stats.solves`, no raw sample
+  computed purely from `stats.curveMean`/`stats.curveStd`/`stats.curvePopulation`, no raw sample
   storage or fetch involved. Chart.js has no built-in bell-curve type, so this plots the normal PDF
   as a smoothed Line chart (`tension`), with a custom plugin drawing 5 colored zone bands (Very
   Fast…Very Slow) at the exact same `±0.5σ`/`±1.5σ` boundaries `classifyPerformance()` uses for the

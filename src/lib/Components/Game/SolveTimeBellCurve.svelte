@@ -10,7 +10,10 @@
    * default and revealed as real points via the expand toggle rather than folded into the curve's
    * shape. Zone boundaries MUST match classifyPerformance()'s thresholds (±0.5σ, ±1.5σ) in
    * quoteStatsUtil.js, or this chart and the "Performance" badge will disagree about what counts
-   * as "Fast".
+   * as "Fast". Matching thresholds is necessary but NOT sufficient: callers MUST also pass the
+   * same (mean, std) the badge's z-score was computed from — for the singleplayer results page
+   * that's the PRE-solve population (curveMean/curveStd), not the post-solve averageSolveTime
+   * shown in the "Average Time" tile.
    */
   // `formatValue` MUST match the unit `mean`/`std`/`yourTime` are actually in — this component is
   // reused for two different quantities: whole-puzzle solve time in seconds (singleplayer results,
